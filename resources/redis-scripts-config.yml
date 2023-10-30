@@ -2,6 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: redis-scripts-config-map
+  namespace: redis
 data:  
 
   sentinel_init.sh: |
