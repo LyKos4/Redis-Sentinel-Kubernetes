@@ -44,8 +44,9 @@ spec:
         - name: redis-config
           mountPath: /etc/redis/
       volumes:
-      - name: data
-        emptyDir: {}
+      - azureFile:
+          secretName: dicedev-redis
+          shareName: redis-data
       - name: redis-config
         emptyDir: {}
       - name: init-script
