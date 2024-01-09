@@ -1,23 +1,9 @@
 apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: redis-config-map
-  namespace: redis
 data:
-  # Variable needed for sentinel init container
-  REDIS_NODES: "redis-0.redis,redis-1.redis,redis-2.redis"
-
-  # Config used in all redises
+  REDIS_NODES: redis-0.redis,redis-1.redis,redis-2.redis
   redis.conf: |
-    bind 0.0.0.0
-    protected-mode no
-    port 6379
-    tcp-backlog 511
-    timeout 10
-    tcp-keepalive 30
     daemonize no
     supervised no
-    pidfile "/var/run/redis_6379.pid"
     loglevel notice
     logfile ""
     databases 16
@@ -34,5 +20,11 @@ data:
     repl-diskless-sync-delay 5
     repl-diskless-load disabled
     appendonly no
+    repl-disable-tcp-nodelay no
     replica-priority 100
-  
+    acllog-max-len 128
+kind: ConfigMap
+metadata:
+  name: redis-config-map
+  namespace: redis
+
