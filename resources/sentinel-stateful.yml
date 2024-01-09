@@ -1,60 +1,95 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
+  annotations:
   name: sentinel
+  namespace: redis
 spec:
-  serviceName: sentinel
+  podManagementPolicy: OrderedReady
   replicas: 3
+  revisionHistoryLimit: 10
   selector:
     matchLabels:
       app: sentinel
+  serviceName: sentinel
   template:
     metadata:
+      creationTimestamp: null
       labels:
         app: sentinel
     spec:
-      initContainers:
-      - name: config
-        image: redis:7.0
-        env:
-          - name: REDIS_NODES
-            valueFrom:
-              configMapKeyRef:
-                name: redis-config-map
-                key: REDIS_NODES
-          - name: REDIS_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: redis-secret
-                key: REDIS_PASSWORD
-        command: [ "sh", "-c", "/scripts/sentinel_init.sh" ]
-        volumeMounts:
-        - name: redis-config
-          mountPath: /etc/redis/
-        - name: init-script
-          mountPath: /scripts/
       containers:
-      - name: sentinel
+      - args:
+        - /etc/redis/sentinel.conf
+        command:
+        - redis-sentinel
         image: redis:7.0
-        command: ["redis-sentinel"]
-        args: ["/etc/redis/sentinel.conf"]
+        imagePullPolicy: IfNotPresent
+        name: sentinel
         ports:
         - containerPort: 5000
           name: sentinel
+          protocol: TCP
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
         volumeMounts:
-        - name: redis-config
-          mountPath: /etc/redis/
-        - name: data
-          mountPath: /data
+        - mountPath: /etc/redis/
+          name: redis-config
+        - mountPath: /data
+          name: data
+      dnsPolicy: ClusterFirst
+      initContainers:
+      - command:
+        - sh
+        - -c
+        - /scripts/sentinel_init.sh
+        env:
+        - name: REDIS_NODES
+          valueFrom:
+            configMapKeyRef:
+              key: REDIS_NODES
+              name: redis-config-map
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: REDIS_PASSWORD
+              name: redis-secret
+        image: redis:7.0
+        imagePullPolicy: IfNotPresent
+        name: config
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /etc/redis/
+          name: redis-config
+        - mountPath: /scripts/
+          name: init-script
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      topologySpreadConstraints:
+      - labelSelector:
+          matchLabels:
+            app: sentinel
+        maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: ScheduleAnyway
       volumes:
-      - name: init-script
-        configMap:
-          name: redis-scripts-config-map
-          defaultMode: 0777
+      - configMap:
+          defaultMode: 511
           items:
           - key: sentinel_init.sh
             path: sentinel_init.sh
-      - name: redis-config
-        emptyDir: {}
-      - name: data
-        emptyDir: {}
+          name: redis-scripts-config-map
+        name: init-script
+      - emptyDir: {}
+        name: redis-config
+      - emptyDir: {}
+        name: data
+  updateStrategy:
+    rollingUpdate:
+      partition: 0
+    type: RollingUpdate
