@@ -74,7 +74,11 @@ spec:
         topologyKey: topology.kubernetes.io/zone
         whenUnsatisfiable: ScheduleAnyway
       volumes:
-      - emptyDir: {}
+      # - emptyDir: {}
+      #   name: data
+      - azureFile:
+          secretName: dicedev-redis
+          shareName: redis-data
         name: data
       - emptyDir: {}
         name: redis-config
