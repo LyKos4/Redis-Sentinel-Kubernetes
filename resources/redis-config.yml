@@ -28,7 +28,7 @@ data:
     rdbchecksum yes
     rdb-del-sync-files no
     dir "/data"
-    replica-serve-stale-data yes
+    replica-serve-stale-data no
     replica-read-only yes
     repl-diskless-sync no
     repl-diskless-sync-delay 5
