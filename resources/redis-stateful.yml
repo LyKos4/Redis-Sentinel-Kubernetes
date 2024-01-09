@@ -13,6 +13,7 @@ spec:
   serviceName: redis-ha
   template:
     metadata:
+      creationTimestamp: null
       labels:
         app: redis-ha
     spec:
@@ -73,9 +74,7 @@ spec:
         topologyKey: topology.kubernetes.io/zone
         whenUnsatisfiable: ScheduleAnyway
       volumes:
-      - azureFile:
-          secretName: store-secret
-          shareName: dicedev-redis
+      - emptyDir: {}
         name: data
       - emptyDir: {}
         name: redis-config
@@ -97,7 +96,3 @@ spec:
     rollingUpdate:
       partition: 0
     type: RollingUpdate
-
-  replicas: 3
-  updateRevision: redis-ha-69d949d6fd
-  updatedReplicas: 3
