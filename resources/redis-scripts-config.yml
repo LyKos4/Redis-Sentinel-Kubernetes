@@ -61,7 +61,7 @@ data:
       else
         echo "updating redis.conf..."
         echo "repl-ping-replica-period 3" >> /etc/redis/redis.conf
-        echo "slave-read-only no" >> /etc/redis/redis.conf
+       ## echo "slave-read-only no" >> /etc/redis/redis.conf
         echo "slaveof redis-0.redis 6379" >> /etc/redis/redis.conf
       fi
 
@@ -74,7 +74,7 @@ data:
         echo "this is master, not updating config..."
       else
         echo "master found : ${MASTER}, updating redis.conf"
-        echo "slave-read-only no" >> /etc/redis/redis.conf
+        ##echo "slave-read-only no" >> /etc/redis/redis.conf
         echo "slaveof ${MASTER} 6379" >> /etc/redis/redis.conf
         echo "repl-ping-replica-period 3" >> /etc/redis/redis.conf
       fi
