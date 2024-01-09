@@ -1,63 +1,103 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: redis
+  name: redis-ha
+  namespace: redis
 spec:
-  serviceName: redis
+  podManagementPolicy: OrderedReady
   replicas: 3
+  revisionHistoryLimit: 10
   selector:
     matchLabels:
-      app: redis
+      app: redis-ha
+  serviceName: redis-ha
   template:
     metadata:
       labels:
-        app: redis
+        app: redis-ha
     spec:
-      initContainers:
-      - name: config
-        image: redis:7.0
-        env:
-          - name: REDIS_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: redis-secret
-                key: REDIS_PASSWORD
-        command: [ "sh", "-c", "/scripts/redis_init.sh" ]
-        volumeMounts:
-        - name: redis-config
-          mountPath: /etc/redis/
-        - name: config
-          mountPath: /tmp/redis/
-        - name: init-script
-          mountPath: /scripts/
       containers:
-      - name: redis
+      - args:
+        - /etc/redis/redis.conf
+        command:
+        - redis-server
         image: redis:7.0
-        command: ["redis-server"]
-        args: ["/etc/redis/redis.conf"]
+        imagePullPolicy: IfNotPresent
+        name: redis
         ports:
         - containerPort: 6379
           name: redis
+          protocol: TCP
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
         volumeMounts:
-        - name: data
-          mountPath: /data
-        - name: redis-config
-          mountPath: /etc/redis/
+        - mountPath: /data
+          name: data
+        - mountPath: /etc/redis/
+          name: redis-config
+      dnsPolicy: ClusterFirst
+      initContainers:
+      - command:
+        - sh
+        - -c
+        - /scripts/redis_init.sh
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: REDIS_PASSWORD
+              name: redis-secret
+        image: redis:7.0
+        imagePullPolicy: IfNotPresent
+        name: config
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /etc/redis/
+          name: redis-config
+        - mountPath: /tmp/redis/
+          name: config
+        - mountPath: /scripts/
+          name: init-script
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      topologySpreadConstraints:
+      - labelSelector:
+          matchLabels:
+            app: redis-ha
+        maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: ScheduleAnyway
       volumes:
-      - name: data
-        emptyDir: {}
-      - name: redis-config
-        emptyDir: {}
-      - name: init-script
-        configMap:
-          name: redis-scripts-config-map
-          defaultMode: 0777
+      - azureFile:
+          secretName: store-secret
+          shareName: dicedev-redis
+        name: data
+      - emptyDir: {}
+        name: redis-config
+      - configMap:
+          defaultMode: 511
           items:
           - key: redis_init.sh
             path: redis_init.sh
-      - name: config
-        configMap:
-          name: redis-config-map
+          name: redis-scripts-config-map
+        name: init-script
+      - configMap:
+          defaultMode: 420
           items:
           - key: redis.conf
             path: redis.conf
+          name: redis-config-map
+        name: config
+  updateStrategy:
+    rollingUpdate:
+      partition: 0
+    type: RollingUpdate
+
+  replicas: 3
+  updateRevision: redis-ha-69d949d6fd
+  updatedReplicas: 3
